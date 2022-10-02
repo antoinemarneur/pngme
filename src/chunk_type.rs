@@ -4,7 +4,7 @@ use std::fmt::Display;
 
 use crate::{Error, Result};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChunkType {
     chunk: [u8; 4]
 }
