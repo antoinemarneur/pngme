@@ -5,12 +5,12 @@ use std::fmt::Display;
 use crate::{Error, Result};
 
 #[derive(Debug, PartialEq, Eq)]
-struct ChunkType {
+pub struct ChunkType {
     chunk: [u8; 4]
 }
 
 impl ChunkType {
-    fn bytes(&self) -> [u8; 4] {
+    pub fn bytes(&self) -> [u8; 4] {
         self.chunk
     }
 
