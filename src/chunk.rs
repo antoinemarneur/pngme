@@ -1,5 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 use crc::Crc;
+use std::fmt;
 use std::io::{BufReader, Read};
 use u32;
 use crate::chunk_type::ChunkType;
@@ -41,6 +42,16 @@ impl Chunk {
     fn data_as_string(&self) -> Result<String> {
         String::from_utf8(self.data().to_vec()).map_err(|e| Error::from(e))
     }
+
+    fn as_bytes(&self) -> Vec<u8> {
+        [
+            self.length.to_be_bytes().as_ref(),
+            &self.chunk_type.bytes(),
+            &self.chunk_data,
+            self.crc.to_be_bytes().as_ref(),
+        ]
+        .concat()
+    }
 }
 
 impl TryFrom<&[u8]> for Chunk {
@@ -66,12 +77,31 @@ impl TryFrom<&[u8]> for Chunk {
         reader.read_exact(&mut buffer)?;
         let crc = u32::from_be_bytes(buffer);
 
+        let crc_check = crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
+        let crc_checksum = crc_check.checksum(&[&chunk_type.bytes(), chunk_data.as_slice()].concat());
+
+        if crc_checksum != crc {
+            Err("Crc not valid")?
+        }
+
         Ok(Self { 
             length,
             chunk_type,
             chunk_data,
             crc,
         })
+    }
+}
+
+impl fmt::Display for Chunk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Chunk {{",)?;
+        writeln!(f, "  Length: {}", self.length())?;
+        writeln!(f, "  Type: {}", self.chunk_type())?;
+        writeln!(f, "  Data: {} bytes", self.data().len())?;
+        writeln!(f, "  Crc: {}", self.crc())?;
+        writeln!(f, "}}",)?;
+        Ok(())
     }
 }
 
@@ -182,24 +212,24 @@ mod tests {
         assert!(chunk.is_err());
     }
 
-    // #[test]
-    // pub fn test_chunk_trait_impls() {
-    //     let data_length: u32 = 42;
-    //     let chunk_type = "RuSt".as_bytes();
-    //     let message_bytes = "This is where your secret message will be!".as_bytes();
-    //     let crc: u32 = 2882656334;
+    #[test]
+    pub fn test_chunk_trait_impls() {
+        let data_length: u32 = 42;
+        let chunk_type = "RuSt".as_bytes();
+        let message_bytes = "This is where your secret message will be!".as_bytes();
+        let crc: u32 = 2882656334;
 
-    //     let chunk_data: Vec<u8> = data_length
-    //         .to_be_bytes()
-    //         .iter()
-    //         .chain(chunk_type.iter())
-    //         .chain(message_bytes.iter())
-    //         .chain(crc.to_be_bytes().iter())
-    //         .copied()
-    //         .collect();
+        let chunk_data: Vec<u8> = data_length
+            .to_be_bytes()
+            .iter()
+            .chain(chunk_type.iter())
+            .chain(message_bytes.iter())
+            .chain(crc.to_be_bytes().iter())
+            .copied()
+            .collect();
         
-    //     let chunk: Chunk = TryFrom::try_from(chunk_data.as_ref()).unwrap();
+        let chunk: Chunk = TryFrom::try_from(chunk_data.as_ref()).unwrap();
         
-    //     let _chunk_string = format!("{}", chunk);
-    // }
+        let _chunk_string = format!("{}", chunk);
+    }
 }
