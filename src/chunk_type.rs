@@ -14,33 +14,33 @@ impl ChunkType {
         self.chunk
     }
 
-    fn is_string(byte: &u8) -> bool {
+    pub fn is_string(byte: &u8) -> bool {
         byte >= &65 && byte <= &90 || byte >= &97 && byte <= &122
     }
 
-    fn is_valid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         self.is_reserved_bit_valid() && self.chunk.iter().all(|x| Self::is_string(x))
     }
 
-    fn is_critical(&self) -> bool {
+    pub fn is_critical(&self) -> bool {
         let critical = 32u8;
 
         (critical & self.chunk[0]) != critical
     }
 
-    fn is_public(&self) -> bool {
+    pub fn is_public(&self) -> bool {
         let public = 32u8;
 
         (public & self.chunk[1]) != public
     }
 
-    fn is_reserved_bit_valid(&self) -> bool {
+    pub fn is_reserved_bit_valid(&self) -> bool {
         let reserved = 32u8;
 
         (reserved & self.chunk[2]) != reserved
     }
 
-    fn is_safe_to_copy(&self) -> bool {
+    pub fn is_safe_to_copy(&self) -> bool {
         let safe = 32u8;
 
         (safe & self.chunk[3]) == safe
