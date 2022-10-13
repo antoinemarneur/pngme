@@ -1,6 +1,95 @@
+use std::convert::TryInto;
+use std::fmt;
+use crate::{Error, Result};
+use crate::chunk::Chunk;
+use crate::chunk_type::ChunkType;
 
-#![allow(unused_variables)]
-fn main() {
+pub struct Png {
+    chunks: Vec<Chunk>,
+}
+
+impl Png {
+    pub const STANDARD_HEADER: [u8; 8] = [137,80,78,71,13,10,26,10];
+
+    pub fn from_chunks(chunks: Vec<Chunk>) -> Png {
+        Png { chunks }
+    }
+
+    pub fn chunks(&self) -> &[Chunk] {
+        &self.chunks
+    }
+
+    fn header(&self) -> &[u8; 8] {
+        &Png::STANDARD_HEADER
+    }
+
+    fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
+        self.chunks()
+            .iter()
+            .find(|chunk| chunk.chunk_type().to_string() == chunk_type)
+    }
+
+    fn append_chunk(&mut self, chunk: Chunk) {
+        self.chunks.push(chunk)
+    }
+
+    fn remove_chunk(&mut self, chunk_type: &str) -> Result<Chunk> {
+        let remove_index = self.chunks()
+            .iter()
+            .position(|chunk| chunk.chunk_type().to_string() == chunk_type);
+
+        match remove_index {
+            Some(index) => Ok(self.chunks.remove(index)),
+            None => Err("ChunkType not found")?,
+        }
+    }
+
+    fn as_bytes(&self) -> Vec<u8> {
+        [
+            Png::STANDARD_HEADER.to_vec(),
+            self.chunks()
+                .iter()
+                .flat_map(|chunk| chunk.as_bytes())
+                .collect(),
+        ]
+        .concat()
+    }
+}
+
+impl TryFrom<&[u8]> for Png {
+    type Error = Error;
+
+    fn try_from(data: &[u8]) -> Result<Self> {
+        let mut chunks: Vec<Chunk> = Vec::new();
+        let mut size: usize = 8;
+
+        if data[0..size] != Png::STANDARD_HEADER {
+            Err("Header incorrect")?
+        }
+
+        while size < data.len() {
+            let length = u32::from_be_bytes(data[size..size + 4].try_into().expect("Invalid slice length")) as usize + 3 * 4;
+            chunks.push(Chunk::try_from(&data[size..size + length])?);
+
+            size += length;
+        }
+
+        Ok(Png::from_chunks(chunks))
+    }
+}
+
+impl fmt::Display for Png {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "header: {:?}\nchunks:", Png::STANDARD_HEADER)?;
+        writeln!(f, "[")?;
+        for chunk in self.chunks.iter() {
+            writeln!(f, "{}", chunk)?;
+        }
+        writeln!(f, "]")?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -412,5 +501,4 @@ mod tests {
         202, 28, 31, 66, 176, 235, 16, 0, 0, 0, 3, 82, 117, 83, 116, 104, 101, 121, 158, 176, 245,
         160, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
     ];
-}
 }
