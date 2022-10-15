@@ -1,12 +1,18 @@
-mod args;
-mod chunk;
-mod chunk_type;
-mod commands;
-mod png;
+use clap::Parser;
 
-pub type Error = Box<dyn std::error::Error>;
-pub type Result<T> = std::result::Result<T, Error>;
+use pngme::{
+    args::{Cli, PngMeArgs},
+    commands::{encode, decode, remove, print_chunks},
+    Result,
+};
 
 fn main() -> Result<()> {
-    todo!()
+    let cli = Cli::parse();
+
+    match &cli.command {
+        PngMeArgs::Encode(args) => encode(args),
+        PngMeArgs::Decode(args) => decode(args),
+        PngMeArgs::Remove(args) => remove(args),
+        PngMeArgs::Print(args) => print_chunks(args),
+    }
 }
