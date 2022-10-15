@@ -1,39 +1,66 @@
 use std::convert::TryInto;
 use std::fmt;
+use std::fs;
+use std::path::Path;
+
 use crate::{Error, Result};
 use crate::chunk::Chunk;
-use crate::chunk_type::ChunkType;
 
+// A PNG container as described by the PNG spec
+// http://www.libpng.org/pub/png/spec/1.2/PNG-Contents.html
 pub struct Png {
     chunks: Vec<Chunk>,
 }
 
 impl Png {
+    // Fill in this array with the correct values per the PNG spec
     pub const STANDARD_HEADER: [u8; 8] = [137,80,78,71,13,10,26,10];
 
+    // Creates a `Png` from a list of chunks using the correct header
     pub fn from_chunks(chunks: Vec<Chunk>) -> Png {
         Png { chunks }
     }
 
+    // Lists the `Chunk`s stored in this `Png`
     pub fn chunks(&self) -> &[Chunk] {
         &self.chunks
     }
 
-    fn header(&self) -> &[u8; 8] {
+    // Creates a `Png` from a file path
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Png> {
+        let file = fs::read(path)?;
+
+        Ok(file.as_slice().try_into()?)
+    }
+
+    // Writes a `Png` to a file path
+    pub fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        fs::write(path, self.as_bytes())?;
+
+        Ok(())
+    }
+
+    // The header of this PNG.
+    pub fn header(&self) -> &[u8; 8] {
         &Png::STANDARD_HEADER
     }
 
-    fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
+    // Searches for a `Chunk` with the specified `chunk_type` and returns the first
+    // matching `Chunk` from this `Png`.
+    pub fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
         self.chunks()
             .iter()
             .find(|chunk| chunk.chunk_type().to_string() == chunk_type)
     }
 
-    fn append_chunk(&mut self, chunk: Chunk) {
+    // Appends a chunk to the end of this `Png` file's `Chunk` list.
+    pub fn append_chunk(&mut self, chunk: Chunk) {
         self.chunks.push(chunk)
     }
 
-    fn remove_chunk(&mut self, chunk_type: &str) -> Result<Chunk> {
+    // Searches for a `Chunk` with the specified `chunk_type` and removes the first
+    // matching `Chunk` from this `Png` list of chunks.
+    pub fn remove_chunk(&mut self, chunk_type: &str) -> Result<Chunk> {
         let remove_index = self.chunks()
             .iter()
             .position(|chunk| chunk.chunk_type().to_string() == chunk_type);
@@ -44,7 +71,9 @@ impl Png {
         }
     }
 
-    fn as_bytes(&self) -> Vec<u8> {
+    // Returns this `Png` as a byte sequence.
+    // These bytes will contain the header followed by the bytes of all of the chunks.
+    pub fn as_bytes(&self) -> Vec<u8> {
         [
             Png::STANDARD_HEADER.to_vec(),
             self.chunks()
@@ -114,8 +143,6 @@ mod tests {
     }
 
     fn chunk_from_strings(chunk_type: &str, data: &str) -> Result<Chunk> {
-        use std::str::FromStr;
-
         let chunk_type = ChunkType::from_str(chunk_type)?;
         let data: Vec<u8> = data.bytes().collect();
 
