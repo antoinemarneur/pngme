@@ -4,42 +4,52 @@ use std::fmt::Display;
 
 use crate::{Error, Result};
 
+// A validated PNG chunk type. See the PNG spec for more details.
+// http://www.libpng.org/pub/png/spec/1.2/PNG-Structure.html
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChunkType {
     chunk: [u8; 4]
 }
 
 impl ChunkType {
+    // Returns the raw bytes contained in this chunk
     pub fn bytes(&self) -> [u8; 4] {
         self.chunk
     }
 
+    // Returns true if the chunk is a string
     pub fn is_string(byte: &u8) -> bool {
         byte >= &65 && byte <= &90 || byte >= &97 && byte <= &122
     }
 
+    // Returns true if the reserved byte is valid and all four bytes are represented by the characters A-Z or a-z.
+    // Note that this chunk type should always be valid as it is validated during construction.
     pub fn is_valid(&self) -> bool {
         self.is_reserved_bit_valid() && self.chunk.iter().all(|x| Self::is_string(x))
     }
 
+    // Returns the property state of the first byte as described in the PNG spec
     pub fn is_critical(&self) -> bool {
         let critical = 32u8;
 
         (critical & self.chunk[0]) != critical
     }
 
+    // Returns the property state of the second byte as described in the PNG spec
     pub fn is_public(&self) -> bool {
         let public = 32u8;
 
         (public & self.chunk[1]) != public
     }
 
+    // Returns the property state of the third byte as described in the PNG spec
     pub fn is_reserved_bit_valid(&self) -> bool {
         let reserved = 32u8;
 
         (reserved & self.chunk[2]) != reserved
     }
 
+    // Returns the property state of the fourth byte as described in the PNG spec
     pub fn is_safe_to_copy(&self) -> bool {
         let safe = 32u8;
 
@@ -78,7 +88,7 @@ impl FromStr for ChunkType {
     }
 }
 
-impl std::fmt::Display for ChunkType {
+impl Display for ChunkType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", from_utf8(&self.chunk).unwrap())
     }

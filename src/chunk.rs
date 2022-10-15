@@ -3,10 +3,12 @@ use crc::Crc;
 use std::fmt;
 use std::io::{BufReader, Read};
 use u32;
-use crate::chunk_type::ChunkType;
 
+use crate::chunk_type::ChunkType;
 use crate::{Error, Result};
 
+// A validated PNG chunk. See the PNG Spec for more details
+// http://www.libpng.org/pub/png/spec/1.2/PNG-Structure.html
 #[derive(Debug, Clone)]
 pub struct Chunk {
     length: u32,
@@ -23,26 +25,38 @@ impl Chunk {
         Chunk { length: data.len() as u32, chunk_type: chunk_type, chunk_data: data, crc: checksum }
     }
 
+    // The length of the data portion of this chunk.
     pub fn length(&self) -> u32 {
         self.length
     }
 
+    // The `ChunkType` of this chunk
     pub fn chunk_type(&self) -> &ChunkType {
         &self.chunk_type
     }
 
+    // The raw data contained in this chunk in bytes
     pub fn data(&self) -> &[u8] {
         &self.chunk_data
     }
 
+    // The CRC of this chunk
     pub fn crc(&self) -> u32 {
         self.crc
     }
 
+    // Returns the data stored in this chunk as a `String`. This function will return an error
+    // if the stored data is not valid UTF-8.
     pub fn data_as_string(&self) -> Result<String> {
         String::from_utf8(self.data().to_vec()).map_err(|e| Error::from(e))
     }
 
+    // Returns this chunk as a byte sequences described by the PNG spec.
+    // The following data is included in this byte sequence in order:
+    // 1. Length of the data *(4 bytes)*
+    // 2. Chunk type *(4 bytes)*
+    // 3. The data itself *(`length` bytes)*
+    // 4. The CRC of the chunk type and data *(4 bytes)*
     pub fn as_bytes(&self) -> Vec<u8> {
         [
             self.length.to_be_bytes().as_ref(),
